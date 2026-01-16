@@ -1,6 +1,0 @@
-python-telegram-bot==20.3
-google-generativeai
-gTTS
-flask
-requests
-gunicorn
