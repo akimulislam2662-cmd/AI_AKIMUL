@@ -1,9 +1,6 @@
-python-telegram-bot
+python-telegram-bot==20.3
 google-generativeai
 gTTS
-yt-dlp
-yfinance
-pandas-ta
-matplotlib
 flask
 requests
+gunicorn
