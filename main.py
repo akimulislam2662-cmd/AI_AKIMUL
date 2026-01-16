@@ -8,53 +8,45 @@ from flask import Flask
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
-# Render এর Environment Variables থেকে টোকেনগুলো নেওয়া হচ্ছে
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-GEMINI_KEY = os.environ.get("GEMINI_KEY")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+# সরাসরি টোকেন (Render Settings এ এগুলো থাকলে কোড আরও নিরাপদ হয়)
+BOT_TOKEN = "8353282406:AAERrPZZXnIKNP650fPwmbnWHthucEE4VHw"
+GEMINI_KEY = "AIzaSyAePvBRMoE0Cel4SgQcjpL0ZuOUYwtH058"
+GITHUB_TOKEN = "Ghp_IoZlGcr3WyzWJbAk4kbJJoUeI7WZgh083EHY"
 REPO_NAME = "akimulislam2662-cmd/AI_AKIMUL"
 
 genai.configure(api_key=GEMINI_KEY)
 ai_model = genai.GenerativeModel('gemini-1.5-flash')
 
 app = Flask('')
+
 @app.route('/')
-def home(): return "Rupali AI is Running"
+def home():
+    return "Rupali AI is Online!"
 
 def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
-
-# GitHub এ কোড অটো-আপডেট করার ফাংশন
-def update_github_file(new_code):
-    url = f"https://api.github.com/repos/{REPO_NAME}/contents/main.py"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    res = requests.get(url, headers=headers).json()
-    sha = res['sha']
-    content = base64.b64encode(new_code.encode()).decode()
-    data = {"message": "Auto-update from Bot", "content": content, "sha": sha}
-    requests.put(url, headers=headers, json=data)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
     user_text = update.message.text
-    
-    # ফিচার যোগ করার কমান্ড চেক
-    if "যোগ করো" in user_text:
-        await update.message.reply_text("একটু সময় দাও জান, আমি নতুন ফিচারটি আমার ব্রেইনে যোগ করছি...")
-        prompt = f"Provide the full updated python code for this telegram bot including: {user_text}. Output only code."
-        response = ai_model.generate_content(prompt)
-        new_code = response.text.replace("```python", "").replace("```", "").strip()
-        update_github_file(new_code)
-        await update.message.reply_text("সফলভাবে আপডেট করেছি! এখন আমি রিস্টার্ট নিচ্ছি।")
-    else:
-        # সাধারণ এআই চ্যাট
+    try:
         response = ai_model.generate_content(user_text)
         await update.message.reply_text(response.text)
+    except Exception as e:
+        print(f"Error: {e}")
 
-async def main():
-    threading.Thread(target=run_flask).start()
-    bot = Application.builder().token(BOT_TOKEN).build()
-    bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    await bot.run_polling()
+def main():
+    # Flask সার্ভার আলাদা থ্রেডে চালানো
+    threading.Thread(target=run_flask, daemon=True).start()
+
+    # টেলিগ্রাম বট সেটআপ
+    application = Application.builder().token(BOT_TOKEN).build()
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    print("Bot is starting...")
+    application.run_polling()
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
