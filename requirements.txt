@@ -1,0 +1,9 @@
+python-telegram-bot
+google-generativeai
+gTTS
+yt-dlp
+yfinance
+pandas-ta
+matplotlib
+flask
+requests
