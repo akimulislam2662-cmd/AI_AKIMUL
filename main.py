@@ -6,9 +6,9 @@ import requests
 import google.generativeai as genai
 from flask import Flask
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
-# সরাসরি টোকেনগুলো সেট করা হলো
+# আপনার টোকেনগুলো (এগুলো কোডেই থাকবে, তাই Render এর ভেরিয়েবল নিয়ে টেনশন নেই)
 BOT_TOKEN = "8353282406:AAERrPZZXnIKNP650fPwmbnWHthucEE4VHw"
 GEMINI_KEY = "AIzaSyAePvBRMoE0Cel4SgQcjpL0ZuOUYwtH058"
 GITHUB_TOKEN = "Ghp_IoZlGcr3WyzWJbAk4kbJJoUeI7WZgh083EHY"
@@ -21,40 +21,33 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "Rupali AI is Online!"
+    return "Bot is active and running!"
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message and update.message.text:
+        try:
+            response = ai_model.generate_content(update.message.text)
+            await update.message.reply_text(response.text)
+        except Exception as e:
+            print(f"Error: {e}")
 
 def run_flask():
+    # Render এর জন্য নির্দিষ্ট পোর্ট (10000)
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
-        return
-    user_text = update.message.text
-    try:
-        response = ai_model.generate_content(user_text)
-        await update.message.reply_text(response.text)
-    except Exception as e:
-        print(f"Error: {e}")
+def main():
+    # Flask কে আলাদাভাবে চালানো
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
 
-async def run_bot():
-    # এই অংশটি আপনার Event Loop সমস্যা সমাধান করবে
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    # টেলিগ্রাম বট সেটআপ (সহজ পদ্ধতিতে)
+    application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    async with application:
-        await application.initialize()
-        await application.start_polling()
-        await asyncio.Event().wait()
+    # পোলিং শুরু
+    application.run_polling(close_loop=False)
 
 if __name__ == '__main__':
-    # Flask সার্ভার চালু করা
-    threading.Thread(target=run_flask, daemon=True).start()
-    
-    # বট রান করা
-    try:
-        asyncio.run(run_bot())
-    except RuntimeError:
-        # যদি লুপ অলরেডি চলতে থাকে তবে এটি ব্যবহার করবে
-        loop = asyncio.get_event_loop()
-        loop.create_task(run_bot())
+    main()
