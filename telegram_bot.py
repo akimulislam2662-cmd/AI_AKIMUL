@@ -1,13 +1,26 @@
 import telebot
 import subprocess
 import os
+from flask import Flask
+from threading import Thread
 
+# আপনার বটের টোকেন
 TOKEN = "8285491470:AAHWHYe7um-khK-2GsC-3JedLQQBQ-D0cuc"
 bot = telebot.TeleBot(TOKEN)
 
+# --- Render-এর জন্য Fake Web Server ---
+app = Flask('')
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+# ------------------------------------
+
 @bot.message_handler(commands=['start'])
 def welcome(message):
-    bot.reply_to(message, "👋 লিঙ্ক দিন! অডিও বা ভিডিও অপশন আসবে।")
+    bot.reply_to(message, "👋 স্বাগতম! ভিডিও বা অডিওর লিঙ্ক দিন।")
 
 @bot.message_handler(func=lambda message: True)
 def get_options(message):
@@ -15,24 +28,20 @@ def get_options(message):
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton("🎬 Video", callback_data=f"vid_{url}"))
     markup.add(telebot.types.InlineKeyboardButton("🎶 Audio", callback_data=f"aud_{url}"))
-    bot.send_message(message.chat.id, "আপনি কী ডাউনলোড করতে চান?", reply_markup=markup)
+    bot.send_message(message.chat.id, "নিচের অপশনটি বেছে নিন:", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
-def download(call):
-    action, url = call.data.split('_', 1)
-    bot.edit_message_text("⏳ ডাউনলোড শুরু হচ্ছে...", call.message.chat.id, call.message.message_id)
-    
-    file = "video.mp4" if action == "vid" else "audio.mp3"
-    cmd = f'yt-dlp -o "{file}" "{url}"' if action == "vid" else f'yt-dlp -x --audio-format mp3 -o "{file}" "{url}"'
+def process_download(call):
+    # আপনার আগের ডাউনলোডের কোড এখানে থাকবে...
+    pass
 
-    try:
-        subprocess.run(cmd, shell=True)
-        with open(file, 'rb') as f:
-            if action == "vid": bot.send_video(call.message.chat.id, f)
-            else: bot.send_audio(call.message.chat.id, f)
-        os.remove(file)
-    except Exception:
-        bot.send_message(call.message.chat.id, "❌ এরর হয়েছে!")
+def start_bot():
+    bot.polling(none_stop=True)
 
-bot.polling()
-  
+if __name__ == "__main__":
+    # ওয়েব সার্ভার ব্যাকগ্রাউন্ডে চালানো
+    t = Thread(target=run)
+    t.start()
+    # বট চালানো
+    start_bot()
+               
